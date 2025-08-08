@@ -91,8 +91,3 @@ export namespace ProviderTransform {
     }
   }
 }
-
- export function topP(_providerID: string, modelID: string) {
-    if (modelID.toLowerCase().includes("qwen")) return 1
-    return undefined
-}
