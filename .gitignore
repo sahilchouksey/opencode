@@ -6,3 +6,6 @@ node_modules
 .vscode
 openapi.json
 playground
+scratch
+opencode.json.txt
+*.txt
