@@ -192,6 +192,72 @@ export namespace Provider {
         },
       }
     },
+    "github-copilot": async (provider) => {
+      // Always autoload GitHub Copilot if auth is available
+      const copilot = await AuthCopilot()
+      if (!copilot) return { autoload: false }
+      let info = await Auth.get("github-copilot")
+      if (!info || info.type !== "oauth") return { autoload: false }
+
+      if (provider && provider.models) {
+        for (const model of Object.values(provider.models)) {
+          model.cost = {
+            input: 0,
+            output: 0,
+          }
+        }
+      }
+
+      return {
+        autoload: true,
+        options: {
+          apiKey: "",
+          async fetch(input: any, init: any) {
+            const info = await Auth.get("github-copilot")
+            if (!info || info.type !== "oauth") return
+            if (!info.access || info.expires < Date.now()) {
+              const tokens = await copilot.access(info.refresh)
+              if (!tokens) throw new Error("GitHub Copilot authentication expired")
+              await Auth.set("github-copilot", {
+                type: "oauth",
+                ...tokens,
+              })
+              info.access = tokens.access
+            }
+            let isAgentCall = false
+            let isVisionRequest = false
+            try {
+              const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body
+              if (body?.messages) {
+                isAgentCall = body.messages.some((msg: any) => msg.role && ["tool", "assistant"].includes(msg.role))
+                isVisionRequest = body.messages.some(
+                  (msg: any) =>
+                    Array.isArray(msg.content) && msg.content.some((part: any) => part.type === "image_url"),
+                )
+              }
+            } catch {}
+            const headers: Record<string, string> = {
+              ...init.headers,
+              ...copilot.HEADERS,
+              Authorization: `Bearer ${info.access}`,
+              "Openai-Intent": "conversation-edits",
+              "X-Initiator": isAgentCall ? "agent" : "user",
+            }
+            if (isVisionRequest) {
+              headers["Copilot-Vision-Request"] = "true"
+            }
+            delete headers["x-api-key"]
+            return fetch(input, {
+              ...init,
+              headers,
+            })
+          },
+        },
+        async getModel(sdk: any, modelID: string) {
+          return sdk.languageModel(modelID)
+        },
+      }
+    },
     openrouter: async () => {
       return {
         autoload: false,
@@ -314,7 +380,8 @@ export namespace Provider {
     for (const [providerID, provider] of Object.entries(database)) {
       if (disabled.has(providerID)) continue
       const apiKey = provider.env.map((item) => process.env[item]).at(0)
-      if (!apiKey) continue
+      // For GitHub Copilot, we don't require an API key as it uses OAuth
+      if (!apiKey && providerID !== "github-copilot") continue
       mergeProvider(
         providerID,
         // only include apiKey if there's only one potential option
@@ -338,6 +405,11 @@ export namespace Provider {
       if (result && (result.autoload || providers[providerID])) {
         mergeProvider(providerID, result.options ?? {}, "custom", result.getModel)
       }
+    }
+
+    // Log providers that were found
+    for (const providerID of Object.keys(providers)) {
+      log.info("found", { providerID })
     }
 
     // load config

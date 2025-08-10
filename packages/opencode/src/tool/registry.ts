@@ -31,7 +31,7 @@ export namespace ToolRegistry {
   ]
 
   export function ids() {
-    return ALL.map((t) => t.id)
+    return [...ALL.map((t) => t.id), "orchestrator"]
   }
 
   export async function tools(providerID: string, _modelID: string) {
@@ -42,28 +42,40 @@ export namespace ToolRegistry {
       })),
     )
 
+    // Lazy load OrchestratorTool to avoid circular dependency
+    const { OrchestratorTool } = await import("./orchestrator")
+    const orchestratorInit = await OrchestratorTool.init()
+
+    const allTools = [
+      ...result,
+      {
+        id: OrchestratorTool.id,
+        ...orchestratorInit,
+      },
+    ]
+
     if (providerID === "openai") {
-      return result.map((t) => ({
+      return allTools.map((t) => ({
         ...t,
         parameters: optionalToNullable(t.parameters),
       }))
     }
 
     if (providerID === "azure") {
-      return result.map((t) => ({
+      return allTools.map((t) => ({
         ...t,
         parameters: optionalToNullable(t.parameters),
       }))
     }
 
     if (providerID === "google") {
-      return result.map((t) => ({
+      return allTools.map((t) => ({
         ...t,
         parameters: sanitizeGeminiParameters(t.parameters),
       }))
     }
 
-    return result
+    return allTools
   }
 
   export async function enabled(_providerID: string, _modelID: string): Promise<Record<string, boolean>> {

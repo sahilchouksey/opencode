@@ -19,7 +19,8 @@ import { StatsCommand } from "./cli/cmd/stats"
 import { McpCommand } from "./cli/cmd/mcp"
 import { GithubCommand } from "./cli/cmd/github"
 import { Global } from "./global"
-
+// Import orchestrator command
+import { OrchestrateCommand } from "./cli/cmd/orchestrate"
 const cancel = new AbortController()
 
 process.on("unhandledRejection", (e) => {
@@ -84,6 +85,7 @@ const cli = yargs(hideBin(process.argv))
   .command(ModelsCommand)
   .command(StatsCommand)
   .command(GithubCommand)
+  .command(OrchestrateCommand)
   .fail((msg) => {
     if (msg.startsWith("Unknown argument") || msg.startsWith("Not enough non-option arguments")) {
       cli.showHelp("log")
