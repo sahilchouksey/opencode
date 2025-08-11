@@ -42,7 +42,7 @@ export namespace ToolRegistry {
       })),
     )
 
-    let allTools = result
+    let allTools: any[] = result
 
     // Load OrchestratorTool dynamically to avoid circular imports
     const shouldLoadOrchestrator = enabledTools?.["orchestrator"] !== false
