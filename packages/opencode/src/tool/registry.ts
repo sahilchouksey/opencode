@@ -34,7 +34,7 @@ export namespace ToolRegistry {
     return [...ALL.map((t) => t.id), "orchestrator"]
   }
 
-  export async function tools(providerID: string, _modelID: string) {
+  export async function tools(providerID: string, _modelID: string, enabledTools?: Record<string, boolean>) {
     const result = await Promise.all(
       ALL.map(async (t) => ({
         id: t.id,
@@ -42,17 +42,26 @@ export namespace ToolRegistry {
       })),
     )
 
-    // Lazy load OrchestratorTool to avoid circular dependency
-    const { OrchestratorTool } = await import("./orchestrator")
-    const orchestratorInit = await OrchestratorTool.init()
+    let allTools = result
 
-    const allTools = [
-      ...result,
-      {
-        id: OrchestratorTool.id,
-        ...orchestratorInit,
-      },
-    ]
+    // Load OrchestratorTool dynamically to avoid circular imports
+    const shouldLoadOrchestrator = enabledTools?.["orchestrator"] !== false
+    if (shouldLoadOrchestrator) {
+      try {
+        const { OrchestratorTool } = await import("./orchestrator")
+        const orchestratorInit = await OrchestratorTool.init()
+        allTools = [
+          ...result,
+          {
+            id: OrchestratorTool.id,
+            ...orchestratorInit,
+          },
+        ]
+      } catch (err) {
+        // If orchestrator tool fails to load, continue without it
+        console.warn("Failed to load orchestrator tool:", err)
+      }
+    }
 
     if (providerID === "openai") {
       return allTools.map((t) => ({

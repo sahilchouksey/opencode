@@ -117,15 +117,6 @@ export namespace Provider {
         },
       }
     },
-    openai: async () => {
-      return {
-        autoload: false,
-        async getModel(sdk: any, modelID: string) {
-          return sdk.responses(modelID)
-        },
-        options: {},
-      }
-    },
     azure: async () => {
       return {
         autoload: false,
@@ -192,67 +183,23 @@ export namespace Provider {
         },
       }
     },
-    "github-copilot": async (provider) => {
-      // Always autoload GitHub Copilot if auth is available
-      const copilot = await AuthCopilot()
-      if (!copilot) return { autoload: false }
-      let info = await Auth.get("github-copilot")
-      if (!info || info.type !== "oauth") return { autoload: false }
-
-      if (provider && provider.models) {
-        for (const model of Object.values(provider.models)) {
-          model.cost = {
-            input: 0,
-            output: 0,
-          }
-        }
-      }
-
+    openai: async () => {
       return {
-        autoload: true,
+        autoload: false,
+        async getModel(sdk: any, modelID: string) {
+          return sdk.responses(modelID)
+        },
         options: {
-          apiKey: "",
-          async fetch(input: any, init: any) {
-            const info = await Auth.get("github-copilot")
-            if (!info || info.type !== "oauth") return
-            if (!info.access || info.expires < Date.now()) {
-              const tokens = await copilot.access(info.refresh)
-              if (!tokens) throw new Error("GitHub Copilot authentication expired")
-              await Auth.set("github-copilot", {
-                type: "oauth",
-                ...tokens,
-              })
-              info.access = tokens.access
-            }
-            let isAgentCall = false
-            let isVisionRequest = false
-            try {
-              const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body
-              if (body?.messages) {
-                isAgentCall = body.messages.some((msg: any) => msg.role && ["tool", "assistant"].includes(msg.role))
-                isVisionRequest = body.messages.some(
-                  (msg: any) =>
-                    Array.isArray(msg.content) && msg.content.some((part: any) => part.type === "image_url"),
-                )
-              }
-            } catch {}
-            const headers: Record<string, string> = {
-              ...init.headers,
-              ...copilot.HEADERS,
-              Authorization: `Bearer ${info.access}`,
-              "Openai-Intent": "conversation-edits",
-              "X-Initiator": isAgentCall ? "agent" : "user",
-            }
-            if (isVisionRequest) {
-              headers["Copilot-Vision-Request"] = "true"
-            }
-            delete headers["x-api-key"]
-            return fetch(input, {
-              ...init,
-              headers,
-            })
+          compatibility: "strict",
+          headers: {
+            "Openai-Beta": "assistants=v2",
           },
         },
+      }
+    },
+    openaiCompatible: async () => {
+      return {
+        autoload: false,
         async getModel(sdk: any, modelID: string) {
           return sdk.languageModel(modelID)
         },

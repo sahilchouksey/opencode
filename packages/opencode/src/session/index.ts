@@ -767,7 +767,7 @@ export namespace Session {
       mergeDeep(await ToolRegistry.enabled(input.providerID, input.modelID)),
       mergeDeep(input.tools ?? {}),
     )
-    for (const item of await ToolRegistry.tools(input.providerID, input.modelID)) {
+    for (const item of await ToolRegistry.tools(input.providerID, input.modelID, enabledTools)) {
       if (enabledTools[item.id] === false) continue
       tools[item.id] = tool({
         id: item.id as any,
