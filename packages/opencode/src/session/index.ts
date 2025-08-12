@@ -790,7 +790,7 @@ export namespace Session {
             abort: options.abortSignal!,
             messageID: assistantMsg.id,
             callID: options.toolCallId,
-            metadata: async (val) => {
+            metadata: async (val: any) => {
               const match = processor.partFromToolCall(options.toolCallId)
               if (match && match.state.status === "running") {
                 await updatePart({

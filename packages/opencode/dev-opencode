@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Script to run local opencode development version
+# Usage: dev-opencode.sh [opencode arguments...]
+
+# Save the original working directory
+ORIG_PWD="$PWD"
+
+# Change to the opencode package directory (adjust this path to your repo location)
+cd "$HOME/Documents/personal/opencode/packages/opencode"
+
+# Check if first argument looks like a flag (starts with -) or if no arguments provided
+if [[ $# -eq 0 || $1 == -* ]]; then
+    # Pass the original directory and all arguments
+    exec bun run src/index.ts "$ORIG_PWD" "$@"
+else
+    # First argument is likely a project path, use it and pass the rest
+    exec bun run src/index.ts "$@"
+fi
